@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+# Nginx fallback vhost for Marzban decoy site
+# Xray forwards unrecognized HTTPS traffic here via fallback to port {{ marzban_nginx_fallback_port }}
+# This vhost listens on 127.0.0.1 only - it is NOT directly exposed to the internet
+
+server {
+    listen 127.0.0.1:{{ marzban_nginx_fallback_port }};
+    server_name {{ marzban_domain }};
+
+    root /var/www/html;
+    index index.html index.htm;
+
+    access_log /var/log/nginx/marzban-decoy-access.log;
+    error_log /var/log/nginx/marzban-decoy-error.log;
+
+    # Security headers - make it look like a real site
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+
+    # Serve static files
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Deny access to hidden files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}

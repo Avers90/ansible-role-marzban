@@ -1,0 +1,155 @@
+---
+- name: marzban | Fail if distro is not supported
+  ansible.builtin.fail:
+    msg: "Distribution '{{ ansible_facts['distribution'] }}' is not supported. Supported: Debian, Ubuntu"
+  when: ansible_facts['distribution'] not in ['Debian', 'Ubuntu']
+
+- name: marzban | Fail if domain is not set
+  ansible.builtin.fail:
+    msg: "marzban_domain is required. Set it in your playbook variables."
+  when: marzban_domain == ""
+
+- name: marzban | Fail if admin credentials are not set
+  ansible.builtin.fail:
+    msg: "marzban_admin_username and marzban_admin_password are required."
+  when: marzban_admin_username == "" or marzban_admin_password == ""
+
+- name: marzban | Install dependencies
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - python3-docker
+    state: present
+    update_cache: true
+
+- name: marzban | Create installation directory
+  ansible.builtin.file:
+    path: "{{ marzban_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: marzban | Create data directory
+  ansible.builtin.file:
+    path: "{{ marzban_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: marzban | Create certificate directory
+  ansible.builtin.file:
+    path: "{{ marzban_cert_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: marzban | Check if docker-compose.yml already exists
+  ansible.builtin.stat:
+    path: "{{ marzban_install_dir }}/docker-compose.yml"
+  register: marzban_compose_exists
+
+- name: marzban | Download docker-compose.yml from official repo
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/Gozargah/Marzban/master/docker-compose.yml"
+    dest: "{{ marzban_install_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not marzban_compose_exists.stat.exists
+
+- name: marzban | Deploy .env configuration
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ marzban_install_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart marzban
+
+- name: marzban | Include SSL tasks (acme.sh + certificate issuance)
+  ansible.builtin.include_tasks: ssl.yml
+
+- name: marzban | Deploy xray_config.json
+  ansible.builtin.template:
+    src: xray_config.json.j2
+    dest: "{{ marzban_data_dir }}/xray_config.json"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart marzban
+  when: marzban_xray_config_deploy | bool
+
+- name: marzban | Include nginx fallback vhost tasks
+  ansible.builtin.include_tasks: nginx.yml
+  when: marzban_nginx_config_deploy | bool
+
+- name: marzban | Pull Marzban Docker image
+  community.docker.docker_compose_v2:
+    project_src: "{{ marzban_install_dir }}"
+    pull: always
+    state: present
+  register: marzban_compose_result
+
+- name: marzban | Check if admin account already exists
+  ansible.builtin.command: >
+    docker exec marzban-marzban-1
+    marzban-cli admin list
+  register: marzban_admin_list
+  changed_when: false
+  failed_when: false
+
+- name: marzban | Create admin account
+  ansible.builtin.expect:
+    command: >
+      docker exec -it marzban-marzban-1
+      marzban-cli admin create --sudo
+    responses:
+      "Username:": "{{ marzban_admin_username }}"
+      "Password:": "{{ marzban_admin_password }}"
+      "Confirm Password:": "{{ marzban_admin_password }}"
+    timeout: 30
+  no_log: true
+  when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
+  changed_when: true
+
+- name: marzban | Save credentials to file
+  ansible.builtin.copy:
+    content: |
+      # Marzban Credentials
+      # Generated: {{ ansible_facts['date_time']['iso8601'] }}
+      # DELETE THIS FILE AFTER SAVING CREDENTIALS!
+
+      Dashboard URL: https://{{ marzban_domain }}/dashboard/
+      Username: {{ marzban_admin_username }}
+      Password: {{ marzban_admin_password }}
+    dest: "{{ marzban_install_dir }}/credentials.txt"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: marzban | Display access information
+  ansible.builtin.debug:
+    msg: |
+      Marzban installed successfully!
+
+      Dashboard: https://{{ marzban_domain }}/dashboard/
+
+      Architecture:
+        Client → :443 (VLESS TLS) → Xray-core
+                                       ↓ fallback (non-VPN traffic)
+                               127.0.0.1:{{ marzban_nginx_fallback_port }} → nginx → /var/www/html
+
+      Credentials saved to: {{ marzban_install_dir }}/credentials.txt
+      (delete after saving!)
+
+      Useful commands:
+        docker compose -f {{ marzban_install_dir }}/docker-compose.yml logs -f
+        docker exec -it marzban-marzban-1 marzban-cli admin list

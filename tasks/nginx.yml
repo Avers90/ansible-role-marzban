@@ -1,0 +1,39 @@
+---
+- name: marzban | Ensure sites-available directory exists
+  ansible.builtin.file:
+    path: /etc/nginx/sites-available
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: marzban | Ensure sites-enabled directory exists
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: marzban | Deploy nginx fallback vhost for decoy site
+  ansible.builtin.template:
+    src: marzban-nginx.conf.j2
+    dest: /etc/nginx/sites-available/marzban
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "nginx -t -c /dev/stdin"
+  notify: Reload nginx
+
+- name: marzban | Enable marzban nginx vhost
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/marzban
+    dest: /etc/nginx/sites-enabled/marzban
+    state: link
+  notify: Reload nginx
+
+- name: marzban | Disable default nginx vhost (conflicts with fallback on port 8080)
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload nginx

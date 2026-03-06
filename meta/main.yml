@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  author: Avers90
+  description: Install and configure Marzban VPN panel (Xray-core) with VLESS TLS and nginx decoy fallback
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+
+dependencies: []
+
+allow_duplicates: false

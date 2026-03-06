@@ -1,0 +1,48 @@
+---
+## Marzban installation directory
+marzban_install_dir: /opt/marzban
+
+## Marzban data directory (certs, db, xray config)
+marzban_data_dir: /var/lib/marzban
+
+## SSL certificate directory
+marzban_cert_dir: /var/lib/marzban/certs
+
+## Domain name (REQUIRED)
+## Used for SSL certificate and subscription URL
+marzban_domain: ""
+
+## Email for acme.sh Let's Encrypt notifications (optional but recommended)
+marzban_ssl_email: "admin@example.com"
+
+## Marzban panel port (dashboard accessible at https://domain:port/dashboard/)
+marzban_panel_port: 8000
+
+## Marzban panel listen address
+## "0.0.0.0" - all interfaces
+## "127.0.0.1" - localhost only (when behind reverse proxy)
+marzban_uvicorn_host: "0.0.0.0"
+
+## Admin credentials (REQUIRED)
+## no_log: true is applied on all tasks using these
+marzban_admin_username: ""
+marzban_admin_password: ""
+
+## Deploy xray_config.json with VLESS TLS + fallback to nginx on 8080
+## Set to false if you manage xray config manually via Marzban dashboard
+marzban_xray_config_deploy: true
+
+## Deploy nginx vhost for decoy site (fallback from Xray on port 8080)
+## Requires ansible-role-nginx to be applied before this role
+marzban_nginx_config_deploy: true
+
+## Xray VLESS inbound port (usually 443)
+marzban_xray_port: 443
+
+## Nginx fallback port (Xray redirects unrecognized traffic here)
+marzban_nginx_fallback_port: 8080
+
+## Service settings
+marzban_service_name: marzban
+marzban_service_enabled: true
+marzban_service_state: started
