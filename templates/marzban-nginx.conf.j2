@@ -7,17 +7,19 @@ server {
     listen 127.0.0.1:{{ marzban_nginx_fallback_port }};
     server_name {{ marzban_domain }};
 
-    root /var/www/html;
+    root {{ marzban_decoy_root }};
     index index.html index.htm;
 
-    access_log /var/log/nginx/marzban-decoy-access.log;
-    error_log /var/log/nginx/marzban-decoy-error.log;
+    access_log {{ marzban_decoy_access_log }};
+    error_log {{ marzban_decoy_error_log }};
 
+{% if marzban_decoy_security_headers | bool %}
     # Security headers - make it look like a real site
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
 
+{% endif %}
     # Serve static files
     location / {
         try_files $uri $uri/ =404;

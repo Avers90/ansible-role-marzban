@@ -15,7 +15,7 @@ marzban_domain: ""
 ## Email for acme.sh Let's Encrypt notifications (optional but recommended)
 marzban_ssl_email: "admin@example.com"
 
-## Marzban panel port (dashboard accessible at https://domain:port/dashboard/)
+## Marzban panel port (dashboard accessible at https://domain/dashboard/)
 marzban_panel_port: 8000
 
 ## Marzban panel listen address
@@ -28,19 +28,56 @@ marzban_uvicorn_host: "0.0.0.0"
 marzban_admin_username: ""
 marzban_admin_password: ""
 
-## Deploy xray_config.json with VLESS TLS + fallback to nginx on 8080
-## Set to false if you manage xray config manually via Marzban dashboard
+## Dashboard path
+marzban_dashboard_path: "/dashboard/"
+
+## Deploy xray_config.json with VLESS TLS + fallback to nginx
+## Set to false to manage xray config manually via Marzban dashboard
 marzban_xray_config_deploy: true
 
-## Deploy nginx vhost for decoy site (fallback from Xray on port 8080)
+## Deploy nginx vhost for decoy site (fallback from Xray)
 ## Requires ansible-role-nginx to be applied before this role
 marzban_nginx_config_deploy: true
 
 ## Xray VLESS inbound port (usually 443)
 marzban_xray_port: 443
 
+## Xray listen address
+marzban_xray_listen: "0.0.0.0"
+
 ## Nginx fallback port (Xray redirects unrecognized traffic here)
 marzban_nginx_fallback_port: 8080
+
+## PROXY Protocol version sent to fallback dest (0 = disabled)
+marzban_xray_fallback_xver: 0
+
+## Xray log level (debug | info | warning | error | none)
+marzban_xray_log_level: "warning"
+
+## ALPN protocols advertised in TLS handshake
+marzban_xray_alpn:
+  - "h2"
+  - "http/1.1"
+
+## Enable Xray traffic sniffing (detect HTTP/TLS destination)
+marzban_xray_sniffing_enabled: true
+
+## Block outbound connections to private/reserved IP ranges
+marzban_xray_block_private_ip: true
+
+## Docker Compose container name (project-service-1 format)
+## Change if marzban_service_name is customized
+marzban_container_name: "marzban-marzban-1"
+
+## Nginx decoy site document root (served on fallback port)
+marzban_decoy_root: "/var/www/html"
+
+## Nginx decoy site log paths
+marzban_decoy_access_log: "/var/log/nginx/marzban-decoy-access.log"
+marzban_decoy_error_log: "/var/log/nginx/marzban-decoy-error.log"
+
+## Add security headers to decoy vhost (makes it look like a real site)
+marzban_decoy_security_headers: true
 
 ## Service settings
 marzban_service_name: marzban

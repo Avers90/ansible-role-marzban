@@ -37,7 +37,6 @@
     /root/.acme.sh/acme.sh --issue
     -d {{ marzban_domain }}
     --webroot /var/www/html
-    --force
   register: marzban_acme_issue
   changed_when: "'Cert success' in marzban_acme_issue.stdout"
   failed_when: marzban_acme_issue.rc != 0 and 'Domains not changed' not in marzban_acme_issue.stdout
@@ -66,4 +65,4 @@
     - { path: "{{ marzban_cert_dir }}/{{ marzban_domain }}-fullchain.cer", mode: "0644" }
   loop_control:
     label: "{{ item.path }}"
-  when: not marzban_cert_exists.stat.exists or marzban_acme_issue is defined
+  when: not marzban_cert_exists.stat.exists or marzban_acme_issue.changed | default(false)

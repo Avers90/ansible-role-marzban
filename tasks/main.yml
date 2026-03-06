@@ -99,7 +99,7 @@
 
 - name: marzban | Check if admin account already exists
   ansible.builtin.command: >
-    docker exec marzban-marzban-1
+    docker exec {{ marzban_container_name }}
     marzban-cli admin list
   register: marzban_admin_list
   changed_when: false
@@ -108,7 +108,7 @@
 - name: marzban | Create admin account
   ansible.builtin.expect:
     command: >
-      docker exec -it marzban-marzban-1
+      docker exec -it {{ marzban_container_name }}
       marzban-cli admin create --sudo
     responses:
       "Username:": "{{ marzban_admin_username }}"
@@ -152,4 +152,4 @@
 
       Useful commands:
         docker compose -f {{ marzban_install_dir }}/docker-compose.yml logs -f
-        docker exec -it marzban-marzban-1 marzban-cli admin list
+        docker exec -it {{ marzban_container_name }} marzban-cli admin list

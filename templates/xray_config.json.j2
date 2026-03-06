@@ -1,11 +1,11 @@
 {
   "log": {
-    "loglevel": "warning"
+    "loglevel": "{{ marzban_xray_log_level }}"
   },
   "inbounds": [
     {
       "tag": "VLESS_TLS",
-      "listen": "0.0.0.0",
+      "listen": "{{ marzban_xray_listen }}",
       "port": {{ marzban_xray_port }},
       "protocol": "vless",
       "settings": {
@@ -14,7 +14,7 @@
         "fallbacks": [
           {
             "dest": {{ marzban_nginx_fallback_port }},
-            "xver": 0
+            "xver": {{ marzban_xray_fallback_xver }}
           }
         ]
       },
@@ -29,14 +29,11 @@
               "keyFile": "{{ marzban_cert_dir }}/{{ marzban_domain }}.key"
             }
           ],
-          "alpn": [
-            "h2",
-            "http/1.1"
-          ]
+          "alpn": {{ marzban_xray_alpn | to_json }}
         }
       },
       "sniffing": {
-        "enabled": true,
+        "enabled": {{ marzban_xray_sniffing_enabled | lower }},
         "destOverride": [
           "http",
           "tls"
@@ -56,6 +53,7 @@
   ],
   "routing": {
     "rules": [
+{% if marzban_xray_block_private_ip | bool %}
       {
         "type": "field",
         "ip": [
@@ -76,6 +74,7 @@
         ],
         "outboundTag": "BLACKHOLE"
       }
+{% endif %}
     ]
   }
 }
