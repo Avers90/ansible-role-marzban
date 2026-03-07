@@ -39,26 +39,12 @@
     creates: /usr/local/bin/xray
   when: not marzban_xray_binary.stat.exists
 
-- name: marzban | Check if Marzban git repo exists
-  ansible.builtin.stat:
-    path: "{{ marzban_install_dir }}/.git"
-  register: marzban_git_exists
-
-- name: marzban | Clone Marzban repository
-  ansible.builtin.git:
-    repo: "https://github.com/Gozargah/Marzban.git"
-    dest: "{{ marzban_install_dir }}"
-    version: "{{ marzban_git_version }}"
-    depth: 1
-  when: not marzban_git_exists.stat.exists
-
-- name: marzban | Update Marzban repository
+- name: marzban | Clone or update Marzban repository
   ansible.builtin.git:
     repo: "https://github.com/Gozargah/Marzban.git"
     dest: "{{ marzban_install_dir }}"
     version: "{{ marzban_git_version }}"
     force: false
-  when: marzban_git_exists.stat.exists
   notify: Restart marzban
 
 - name: marzban | Create data directory
