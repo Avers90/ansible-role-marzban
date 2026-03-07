@@ -69,10 +69,13 @@ roles:
 | `marzban_xray_port` | `443` | Xray VLESS TLS listen port |
 | `marzban_xray_listen` | `"0.0.0.0"` | Xray listen address |
 | `marzban_xray_log_level` | `"warning"` | Xray log level (`debug\|info\|warning\|error\|none`) |
-| `marzban_xray_alpn` | `["h2","http/1.1"]` | ALPN protocols in TLS handshake |
+| `marzban_xray_tls_min_version` | `"1.2"` | Minimum TLS version for VLESS inbound |
+| `marzban_xray_cipher_suites` | `"TLS_ECDHE_..."` | TLS cipher suites (empty string = Xray defaults) |
+| `marzban_xray_alpn` | `["http/1.1"]` | ALPN protocols in TLS handshake — do NOT add `h2`, breaks fallback |
 | `marzban_xray_sniffing_enabled` | `true` | Enable Xray traffic sniffing |
 | `marzban_xray_fallback_xver` | `0` | PROXY Protocol version sent to fallback (0 = disabled) |
 | `marzban_xray_block_private_ip` | `true` | Block outbound to private/reserved IP ranges |
+| `marzban_xray_extra_inbounds` | `[]` | Additional Xray inbounds appended after main VLESS TLS inbound |
 
 ### Nginx
 
@@ -105,6 +108,36 @@ roles:
         marzban_ssl_email: "admin@example.com"
         marzban_admin_username: "admin"
         marzban_admin_password: "{{ vault_marzban_password }}"
+```
+
+### Adding extra Xray inbounds
+
+Use `marzban_xray_extra_inbounds` to append additional inbounds (e.g. VLESS WebSocket, VMess, Trojan)
+after the main VLESS TLS inbound. Each entry is a plain YAML dict that is serialised to JSON:
+
+```yaml
+marzban_xray_extra_inbounds:
+  - tag: "vless-ws"
+    listen: "127.0.0.1"
+    port: 8443
+    protocol: "vless"
+    settings:
+      clients: []
+      decryption: "none"
+    streamSettings:
+      network: "ws"
+      wsSettings:
+        path: "/vless-ws"
+    sniffing:
+      enabled: true
+      destOverride: ["http", "tls", "quic"]
+```
+
+Certificate paths for extra inbounds (if TLS is terminated by Xray):
+
+```
+{{ marzban_cert_dir }}/{{ marzban_domain }}-fullchain.cer
+{{ marzban_cert_dir }}/{{ marzban_domain }}.key
 ```
 
 Use `ansible-vault` to protect `marzban_admin_password`.

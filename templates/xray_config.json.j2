@@ -23,6 +23,10 @@
         "security": "tls",
         "tlsSettings": {
           "serverName": "{{ marzban_domain }}",
+          "minVersion": "{{ marzban_xray_tls_min_version }}",
+{% if marzban_xray_cipher_suites != "" %}
+          "cipherSuites": "{{ marzban_xray_cipher_suites }}",
+{% endif %}
           "certificates": [
             {
               "certificateFile": "{{ marzban_cert_dir }}/{{ marzban_domain }}-fullchain.cer",
@@ -39,7 +43,8 @@
           "tls"
         ]
       }
-    }
+    }{% for inbound in marzban_xray_extra_inbounds %},
+    {{ inbound | to_json(indent=4) | indent(4) }}{% endfor %}
   ],
   "outbounds": [
     {
