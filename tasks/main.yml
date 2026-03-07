@@ -21,9 +21,15 @@
       - ca-certificates
       - gnupg
       - lsb-release
-      - python3-docker
+      - python3-pip
     state: present
     update_cache: true
+
+- name: marzban | Install docker Python SDK >= 6.0 (required by community.docker)
+  ansible.builtin.pip:
+    name: docker>=6.0
+    executable: pip3
+    state: present
 
 - name: marzban | Create installation directory
   ansible.builtin.file:
@@ -105,19 +111,35 @@
   changed_when: false
   failed_when: false
 
-- name: marzban | Create admin account
-  ansible.builtin.expect:
-    command: >
-      docker exec -it {{ marzban_container_name }}
-      marzban-cli admin create --sudo
-    responses:
-      "Username:": "{{ marzban_admin_username }}"
-      "Password:": "{{ marzban_admin_password }}"
-      "Confirm Password:": "{{ marzban_admin_password }}"
-    timeout: 30
+- name: marzban | Inject SUDO credentials into .env for import-from-env
+  ansible.builtin.lineinfile:
+    path: "{{ marzban_install_dir }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
   no_log: true
+  loop:
+    - { key: "SUDO_USERNAME", value: "{{ marzban_admin_username }}" }
+    - { key: "SUDO_PASSWORD", value: "{{ marzban_admin_password }}" }
   when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
+
+- name: marzban | Create sudo admin via import-from-env
+  ansible.builtin.command: >
+    docker exec {{ marzban_container_name }}
+    marzban-cli admin import-from-env --yes
+  no_log: true
   changed_when: true
+  when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
+
+- name: marzban | Remove SUDO credentials from .env after import
+  ansible.builtin.lineinfile:
+    path: "{{ marzban_install_dir }}/.env"
+    regexp: "^{{ item }}="
+    state: absent
+  loop:
+    - SUDO_USERNAME
+    - SUDO_PASSWORD
+  when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
 
 - name: marzban | Save credentials to file
   ansible.builtin.copy:
