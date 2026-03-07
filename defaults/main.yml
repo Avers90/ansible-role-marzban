@@ -12,7 +12,8 @@ marzban_cert_dir: /var/lib/marzban/certs
 marzban_venv_dir: "{{ marzban_install_dir }}/venv"
 
 ## Git branch or tag to install/update to
-marzban_git_version: "master"
+## Pin to a specific release tag for stability (e.g. "v0.8.4")
+marzban_git_version: "v0.8.4"
 
 ## Xray version to install via Xray-install script ("latest" or specific version e.g. "v1.8.11")
 marzban_xray_version: "latest"
@@ -120,3 +121,10 @@ marzban_host_alpn: "http/1.1"
 ## TLS fingerprint for uTLS impersonation
 ## (chrome | firefox | safari | ios | android | edge | 360 | qq | random | randomized | "")
 marzban_host_fingerprint: "chrome"
+
+## SNI value embedded in client subscription links
+## " " (single space) — Marzban treats it as truthy, strips to "" in URI,
+##   client falls back to using address as SNI. Real domain stays hidden.
+## "" or null — Marzban falls back to reading SANs from TLS certificate,
+##   exposing the real domain as sni=domain in the URI.
+marzban_host_sni: " "

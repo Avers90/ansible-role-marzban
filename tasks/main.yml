@@ -180,7 +180,7 @@
         - remark: "{{ marzban_host_remark }}"
           address: "{{ marzban_domain }}"
           port: "{{ marzban_xray_port }}"
-          sni: null
+          sni: "{{ marzban_host_sni }}"
           host: null
           path: ""
           security: "{{ marzban_host_security }}"
