@@ -1,0 +1,77 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Automatically sets VLESS flow for users where it is empty.
+# Runs via systemd timer every {{ marzban_sync_flow_interval }}.
+
+set -euo pipefail
+
+MARZBAN_URL="http://127.0.0.1:{{ marzban_panel_port }}"
+FLOW="{{ marzban_user_flow }}"
+CREDS_FILE="/etc/marzban/sync-flow.env"
+LOG_TAG="marzban-sync-flow"
+
+log() { echo "$(date -Iseconds) $*" | systemd-cat -t "$LOG_TAG" -p info; }
+err() { echo "$(date -Iseconds) ERROR: $*" | systemd-cat -t "$LOG_TAG" -p err; exit 1; }
+
+if [[ -z "$FLOW" ]]; then
+  log "marzban_user_flow is empty, nothing to do"
+  exit 0
+fi
+
+[[ -f "$CREDS_FILE" ]] || err "Credentials file $CREDS_FILE not found"
+
+# shellcheck source=/dev/null
+source "$CREDS_FILE"
+
+# Obtain API token
+TOKEN=$(curl -sf -X POST "${MARZBAN_URL}/api/admin/token" \
+  --data-urlencode "username=${MARZBAN_USER}" \
+  --data-urlencode "password=${MARZBAN_PASS}" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])') \
+  || err "Failed to obtain API token"
+
+# Fetch all users and update those with wrong/empty flow
+curl -sf "${MARZBAN_URL}/api/users?limit=9999" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  | _TOKEN="$TOKEN" _URL="$MARZBAN_URL" _FLOW="$FLOW" python3 -c '
+import sys, json, urllib.request, urllib.error, os
+
+data     = json.load(sys.stdin)
+token    = os.environ["_TOKEN"]
+url_base = os.environ["_URL"]
+flow     = os.environ["_FLOW"]
+
+updated = 0
+for user in data.get("users", []):
+    vless = user.get("proxies", {}).get("vless")
+    if vless is None:
+        continue
+    if vless.get("flow", "") == flow:
+        continue
+
+    body = json.dumps({
+        "proxies": {"vless": {"id": vless["id"], "flow": flow}}
+    }).encode()
+
+    req = urllib.request.Request(
+        url_base + "/api/user/" + user["username"],
+        data=body,
+        method="PUT",
+        headers={
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            resp.read()
+        print("Set flow=" + flow + " for " + user["username"])
+        updated += 1
+    except urllib.error.HTTPError as e:
+        print("ERROR: failed to update " + user["username"] + ": " + str(e.code) + " " + e.read().decode(), file=sys.stderr)
+        sys.exit(1)
+
+if updated == 0:
+    print("All users already have correct flow, nothing to do")
+' | while IFS= read -r line; do log "$line"; done

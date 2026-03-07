@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Marzban sync VLESS flow timer
+After=marzban.service
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec={{ marzban_sync_flow_interval }}
+Unit=marzban-sync-flow.service
+
+[Install]
+WantedBy=timers.target

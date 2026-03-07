@@ -122,6 +122,13 @@ marzban_host_alpn: "http/1.1"
 ## (chrome | firefox | safari | ios | android | edge | 360 | qq | random | randomized | "")
 marzban_host_fingerprint: "chrome"
 
+## Automatically sync VLESS flow for all users via systemd timer
+## Useful when users are created via Marzban UI between Ansible runs
+marzban_sync_flow_enabled: true
+
+## How often to check and fix flow for users (systemd timer OnUnitActiveSec)
+marzban_sync_flow_interval: "5min"
+
 ## SNI value embedded in client subscription links
 ## " " (single space) — Marzban treats it as truthy, strips to "" in URI,
 ##   client falls back to using address as SNI. Real domain stays hidden.

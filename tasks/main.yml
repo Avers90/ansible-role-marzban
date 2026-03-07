@@ -230,6 +230,70 @@
     marzban_users_response: null
   when: marzban_configure_hosts | bool or marzban_user_flow != ""
 
+- name: marzban | Create /etc/marzban directory for sync-flow credentials
+  ansible.builtin.file:
+    path: /etc/marzban
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: marzban_sync_flow_enabled | bool
+
+- name: marzban | Deploy sync-flow credentials file
+  ansible.builtin.template:
+    src: marzban-sync-flow.env.j2
+    dest: /etc/marzban/sync-flow.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when: marzban_sync_flow_enabled | bool
+
+- name: marzban | Deploy sync-flow script
+  ansible.builtin.template:
+    src: marzban-sync-flow.sh.j2
+    dest: /usr/local/sbin/marzban-sync-flow.sh
+    owner: root
+    group: root
+    mode: "0700"
+  when: marzban_sync_flow_enabled | bool
+
+- name: marzban | Deploy sync-flow systemd service unit
+  ansible.builtin.template:
+    src: marzban-sync-flow.service.j2
+    dest: /etc/systemd/system/marzban-sync-flow.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: marzban_sync_flow_enabled | bool
+  notify: Reload systemd
+
+- name: marzban | Deploy sync-flow systemd timer
+  ansible.builtin.template:
+    src: marzban-sync-flow.timer.j2
+    dest: /etc/systemd/system/marzban-sync-flow.timer
+    owner: root
+    group: root
+    mode: "0644"
+  when: marzban_sync_flow_enabled | bool
+  notify: Reload systemd
+
+- name: marzban | Enable and start sync-flow timer
+  ansible.builtin.systemd:
+    name: marzban-sync-flow.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: marzban_sync_flow_enabled | bool
+
+- name: marzban | Disable and remove sync-flow timer when disabled
+  ansible.builtin.systemd:
+    name: marzban-sync-flow.timer
+    enabled: false
+    state: stopped
+  failed_when: false
+  when: not (marzban_sync_flow_enabled | bool)
+
 - name: marzban | Check if admin account already exists
   ansible.builtin.command:
     cmd: "{{ marzban_venv_dir }}/bin/python marzban-cli.py admin list"
