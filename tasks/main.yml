@@ -155,7 +155,7 @@
     delay: 3
     timeout: 30
 
-- name: marzban | Obtain API token for host settings configuration
+- name: marzban | Obtain API token
   ansible.builtin.uri:
     url: "http://127.0.0.1:{{ marzban_panel_port }}/api/admin/token"
     method: POST
@@ -166,7 +166,7 @@
     status_code: 200
   register: marzban_api_token_response
   no_log: true
-  when: marzban_configure_hosts | bool
+  when: marzban_configure_hosts | bool or marzban_user_flow != ""
 
 - name: marzban | Configure VLESS_TLS host settings via API
   ansible.builtin.uri:
@@ -194,10 +194,40 @@
   no_log: true
   when: marzban_configure_hosts | bool
 
+- name: marzban | Get list of all users for flow update
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ marzban_panel_port }}/api/users?limit=999"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ marzban_api_token_response.json.access_token }}"
+    status_code: 200
+  register: marzban_users_response
+  no_log: true
+  when: marzban_user_flow != ""
+
+- name: marzban | Set VLESS flow for all users
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ marzban_panel_port }}/api/user/{{ item.username }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ marzban_api_token_response.json.access_token }}"
+    body_format: json
+    body:
+      proxies:
+        VLESS:
+          flow: "{{ marzban_user_flow }}"
+    status_code: 200
+  loop: "{{ marzban_users_response.json.users }}"
+  loop_control:
+    label: "{{ item.username }}"
+  no_log: true
+  when: marzban_user_flow != ""
+
 - name: marzban | Clear API token from memory
   ansible.builtin.set_fact:
     marzban_api_token_response: null
-  when: marzban_configure_hosts | bool
+    marzban_users_response: null
+  when: marzban_configure_hosts | bool or marzban_user_flow != ""
 
 - name: marzban | Check if admin account already exists
   ansible.builtin.command:
