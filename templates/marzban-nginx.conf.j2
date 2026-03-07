@@ -20,8 +20,8 @@ server {
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
 
 {% endif %}
-    # Marzban dashboard and API proxy
-    location ~* ^/(dashboard|api|docs|redoc|openapi.json|statics) {
+    # Marzban dashboard, API and subscription proxy
+    location ~* ^/(dashboard|api|docs|redoc|openapi.json|statics|{{ marzban_subscription_path }}) {
         proxy_pass http://127.0.0.1:{{ marzban_panel_port }};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

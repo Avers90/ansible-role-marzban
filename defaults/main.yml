@@ -122,6 +122,10 @@ marzban_host_alpn: "http/1.1"
 ## (chrome | firefox | safari | ios | android | edge | 360 | qq | random | randomized | "")
 marzban_host_fingerprint: "chrome"
 
+## Marzban subscription path (must match XRAY_SUBSCRIPTION_PATH in .env)
+## Used in nginx location to proxy subscription requests to Marzban
+marzban_subscription_path: "sub"
+
 ## Automatically sync VLESS flow for all users via systemd timer
 ## Useful when users are created via Marzban UI between Ansible runs
 marzban_sync_flow_enabled: true
