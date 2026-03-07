@@ -59,8 +59,9 @@ marzban_xray_fallback_xver: 0
 marzban_xray_log_level: "warning"
 
 ## ALPN protocols advertised in TLS handshake
+## NOTE: h2 (HTTP/2) must NOT be included — Xray fallback only works with HTTP/1.1.
+## Adding h2 causes ERR_HTTP2_PROTOCOL_ERROR in browsers.
 marzban_xray_alpn:
-  - "h2"
   - "http/1.1"
 
 ## Enable Xray traffic sniffing (detect HTTP/TLS destination)
