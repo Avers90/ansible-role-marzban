@@ -99,6 +99,11 @@ marzban_service_name: marzban
 marzban_service_enabled: true
 marzban_service_state: started
 
+## VLESS flow control — applied to all users via Marzban API
+## xtls-rprx-vision: recommended for TCP+TLS (reduces double encryption overhead)
+## "": disabled — required when using WebSocket or gRPC transports
+marzban_user_flow: "xtls-rprx-vision"
+
 ## Host settings — configured via Marzban API after install
 ## Controls what appears in Host Settings UI and gets embedded in client subscription links
 marzban_configure_hosts: true
