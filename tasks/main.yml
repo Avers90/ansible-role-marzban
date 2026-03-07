@@ -77,7 +77,14 @@
     group: root
     mode: "0700"
 
-- name: marzban | Create Python virtualenv and install requirements
+- name: marzban | Install setuptools in virtualenv (required by apscheduler on Python 3.12)
+  ansible.builtin.pip:
+    name: setuptools
+    virtualenv: "{{ marzban_venv_dir }}"
+    virtualenv_command: python3 -m venv
+    state: present
+
+- name: marzban | Install Marzban Python requirements
   ansible.builtin.pip:
     requirements: "{{ marzban_install_dir }}/requirements.txt"
     virtualenv: "{{ marzban_venv_dir }}"
