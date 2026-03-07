@@ -30,6 +30,7 @@
     name: docker>=6.0
     executable: pip3
     state: present
+    extra_args: "--break-system-packages"
 
 - name: marzban | Create installation directory
   ansible.builtin.file:
