@@ -1,5 +1,5 @@
 # {{ ansible_managed }}
-# Nginx fallback vhost for Marzban decoy site
+# Nginx vhost for Marzban
 # Xray forwards unrecognized HTTPS traffic here via fallback to port {{ marzban_nginx_fallback_port }}
 # This vhost listens on 127.0.0.1 only - it is NOT directly exposed to the internet
 
@@ -7,19 +7,28 @@ server {
     listen 127.0.0.1:{{ marzban_nginx_fallback_port }};
     server_name {{ marzban_domain }};
 
-    root {{ marzban_decoy_root }};
+    root {{ marzban_site_root }};
     index index.html index.htm;
 
-    access_log {{ marzban_decoy_access_log }};
-    error_log {{ marzban_decoy_error_log }};
+    access_log {{ marzban_site_access_log }};
+    error_log {{ marzban_site_error_log }};
 
-{% if marzban_decoy_security_headers | bool %}
+{% if marzban_site_security_headers | bool %}
     # Security headers - make it look like a real site
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
 
 {% endif %}
+    # Marzban dashboard and API proxy
+    location ~* ^/(dashboard|api|docs|redoc|openapi.json) {
+        proxy_pass http://127.0.0.1:{{ marzban_panel_port }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # Serve static files
     location / {
         try_files $uri $uri/ =404;

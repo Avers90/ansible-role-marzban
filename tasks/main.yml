@@ -17,28 +17,49 @@
 - name: marzban | Install dependencies
   ansible.builtin.apt:
     name:
+      - git
       - curl
       - ca-certificates
-      - gnupg
-      - lsb-release
-      - python3-pip
+      - python3
+      - python3-venv
+      - cron
     state: present
     update_cache: true
 
-- name: marzban | Install docker Python SDK >= 6.0 (required by community.docker)
-  ansible.builtin.pip:
-    name: docker>=6.0
-    executable: pip3
-    state: present
-    extra_args: "--break-system-packages"
+- name: marzban | Check if Xray is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/xray
+  register: marzban_xray_binary
 
-- name: marzban | Create installation directory
-  ansible.builtin.file:
-    path: "{{ marzban_install_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
+- name: marzban | Install Xray via official install script
+  ansible.builtin.shell: |
+    bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install \
+      {% if marzban_xray_version != 'latest' %}--version {{ marzban_xray_version }}{% endif %}
+  args:
+    creates: /usr/local/bin/xray
+  when: not marzban_xray_binary.stat.exists
+
+- name: marzban | Check if Marzban git repo exists
+  ansible.builtin.stat:
+    path: "{{ marzban_install_dir }}/.git"
+  register: marzban_git_exists
+
+- name: marzban | Clone Marzban repository
+  ansible.builtin.git:
+    repo: "https://github.com/Gozargah/Marzban.git"
+    dest: "{{ marzban_install_dir }}"
+    version: "{{ marzban_git_version }}"
+    depth: 1
+  when: not marzban_git_exists.stat.exists
+
+- name: marzban | Update Marzban repository
+  ansible.builtin.git:
+    repo: "https://github.com/Gozargah/Marzban.git"
+    dest: "{{ marzban_install_dir }}"
+    version: "{{ marzban_git_version }}"
+    force: false
+  when: marzban_git_exists.stat.exists
+  notify: Restart marzban
 
 - name: marzban | Create data directory
   ansible.builtin.file:
@@ -56,19 +77,42 @@
     group: root
     mode: "0700"
 
-- name: marzban | Check if docker-compose.yml already exists
-  ansible.builtin.stat:
-    path: "{{ marzban_install_dir }}/docker-compose.yml"
-  register: marzban_compose_exists
+- name: marzban | Create Python virtualenv and install requirements
+  ansible.builtin.pip:
+    requirements: "{{ marzban_install_dir }}/requirements.txt"
+    virtualenv: "{{ marzban_venv_dir }}"
+    virtualenv_command: python3 -m venv
+    state: present
 
-- name: marzban | Download docker-compose.yml from official repo
-  ansible.builtin.get_url:
-    url: "https://raw.githubusercontent.com/Gozargah/Marzban/master/docker-compose.yml"
-    dest: "{{ marzban_install_dir }}/docker-compose.yml"
+- name: marzban | Run database migrations
+  ansible.builtin.command:
+    cmd: "{{ marzban_venv_dir }}/bin/alembic upgrade head"
+    chdir: "{{ marzban_install_dir }}"
+  environment:
+    SQLALCHEMY_DATABASE_URL: "sqlite:///{{ marzban_data_dir }}/db.sqlite3"
+  changed_when: false
+
+- name: marzban | Create marzban-cli symlink
+  ansible.builtin.file:
+    src: "{{ marzban_install_dir }}/marzban-cli.py"
+    dest: /usr/bin/marzban-cli
+    state: link
+
+- name: marzban | Make marzban-cli executable
+  ansible.builtin.file:
+    path: "{{ marzban_install_dir }}/marzban-cli.py"
+    mode: "0755"
+
+- name: marzban | Deploy systemd service unit
+  ansible.builtin.template:
+    src: marzban.service.j2
+    dest: /etc/systemd/system/marzban.service
     owner: root
     group: root
     mode: "0644"
-  when: not marzban_compose_exists.stat.exists
+  notify:
+    - Reload systemd
+    - Restart marzban
 
 - name: marzban | Deploy .env configuration
   ansible.builtin.template:
@@ -93,21 +137,28 @@
   notify: Restart marzban
   when: marzban_xray_config_deploy | bool
 
-- name: marzban | Include nginx fallback vhost tasks
+- name: marzban | Include nginx vhost tasks
   ansible.builtin.include_tasks: nginx.yml
   when: marzban_nginx_config_deploy | bool
 
-- name: marzban | Pull Marzban Docker image
-  community.docker.docker_compose_v2:
-    project_src: "{{ marzban_install_dir }}"
-    pull: always
-    state: present
-  register: marzban_compose_result
+- name: marzban | Enable and start Marzban service
+  ansible.builtin.systemd:
+    name: "{{ marzban_service_name }}"
+    enabled: "{{ marzban_service_enabled }}"
+    state: "{{ marzban_service_state }}"
+    daemon_reload: true
+
+- name: marzban | Wait for Marzban to be ready
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ marzban_panel_port }}"
+    delay: 3
+    timeout: 30
 
 - name: marzban | Check if admin account already exists
-  ansible.builtin.command: >
-    docker exec {{ marzban_container_name }}
-    marzban-cli admin list
+  ansible.builtin.command:
+    cmd: "{{ marzban_venv_dir }}/bin/python marzban-cli.py admin list"
+    chdir: "{{ marzban_install_dir }}"
   register: marzban_admin_list
   changed_when: false
   failed_when: false
@@ -124,25 +175,10 @@
     - { key: "SUDO_PASSWORD", value: "{{ marzban_admin_password }}" }
   when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
 
-- name: marzban | Recreate container so SUDO_* vars are loaded into container env
-  community.docker.docker_compose_v2:
-    project_src: "{{ marzban_install_dir }}"
-    state: present
-    recreate: always
-  when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
-
-- name: marzban | Wait for Marzban to be ready after recreate
-  ansible.builtin.wait_for:
-    host: "127.0.0.1"
-    port: "{{ marzban_panel_port }}"
-    delay: 3
-    timeout: 30
-  when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
-
 - name: marzban | Create sudo admin via import-from-env
-  ansible.builtin.command: >
-    docker exec {{ marzban_container_name }}
-    marzban-cli admin import-from-env --yes
+  ansible.builtin.command:
+    cmd: "{{ marzban_venv_dir }}/bin/python marzban-cli.py admin import-from-env --yes"
+    chdir: "{{ marzban_install_dir }}"
   no_log: true
   changed_when: true
   when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
@@ -157,13 +193,6 @@
     - SUDO_PASSWORD
   when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
 
-- name: marzban | Recreate container to remove SUDO_* vars from container env
-  community.docker.docker_compose_v2:
-    project_src: "{{ marzban_install_dir }}"
-    state: present
-    recreate: always
-  when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
-
 - name: marzban | Save credentials to file
   ansible.builtin.copy:
     content: |
@@ -171,7 +200,7 @@
       # Generated: {{ ansible_facts['date_time']['iso8601'] }}
       # DELETE THIS FILE AFTER SAVING CREDENTIALS!
 
-      Dashboard URL: https://{{ marzban_domain }}/dashboard/
+      Dashboard URL: https://{{ marzban_domain }}{{ marzban_dashboard_path }}
       Username: {{ marzban_admin_username }}
       Password: {{ marzban_admin_password }}
     dest: "{{ marzban_install_dir }}/credentials.txt"
@@ -185,16 +214,16 @@
     msg: |
       Marzban installed successfully!
 
-      Dashboard: https://{{ marzban_domain }}/dashboard/
+      Dashboard: https://{{ marzban_domain }}{{ marzban_dashboard_path }}
 
       Architecture:
-        Client → :443 (VLESS TLS) → Xray-core
+        Client → :{{ marzban_xray_port }} (VLESS TLS) → Xray-core
                                        ↓ fallback (non-VPN traffic)
-                               127.0.0.1:{{ marzban_nginx_fallback_port }} → nginx → /var/www/html
+                               127.0.0.1:{{ marzban_nginx_fallback_port }} → nginx → {{ marzban_site_root }}
 
       Credentials saved to: {{ marzban_install_dir }}/credentials.txt
       (delete after saving!)
 
       Useful commands:
-        docker compose -f {{ marzban_install_dir }}/docker-compose.yml logs -f
-        docker exec -it {{ marzban_container_name }} marzban-cli admin list
+        journalctl -u marzban -f
+        marzban-cli admin list
