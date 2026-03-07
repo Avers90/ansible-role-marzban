@@ -1,8 +1,17 @@
 ---
+- name: marzban | Remove legacy nginx vhost (renamed to marzban.conf)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/nginx/sites-enabled/marzban
+    - /etc/nginx/sites-available/marzban
+  notify: Reload nginx
+
 - name: marzban | Deploy nginx fallback vhost for decoy site
   ansible.builtin.template:
     src: marzban-nginx.conf.j2
-    dest: /etc/nginx/sites-available/marzban
+    dest: /etc/nginx/sites-available/marzban.conf
     owner: root
     group: root
     mode: "0644"
@@ -10,8 +19,8 @@
 
 - name: marzban | Enable marzban nginx vhost
   ansible.builtin.file:
-    src: /etc/nginx/sites-available/marzban
-    dest: /etc/nginx/sites-enabled/marzban
+    src: /etc/nginx/sites-available/marzban.conf
+    dest: /etc/nginx/sites-enabled/marzban.conf
     state: link
   notify: Reload nginx
 
