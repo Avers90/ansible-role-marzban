@@ -124,6 +124,20 @@
     - { key: "SUDO_PASSWORD", value: "{{ marzban_admin_password }}" }
   when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
 
+- name: marzban | Restart container so SUDO_* vars are loaded into container env
+  community.docker.docker_compose_v2:
+    project_src: "{{ marzban_install_dir }}"
+    state: restarted
+  when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
+
+- name: marzban | Wait for Marzban to be ready after restart
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ marzban_panel_port }}"
+    delay: 3
+    timeout: 30
+  when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
+
 - name: marzban | Create sudo admin via import-from-env
   ansible.builtin.command: >
     docker exec {{ marzban_container_name }}
@@ -140,6 +154,12 @@
   loop:
     - SUDO_USERNAME
     - SUDO_PASSWORD
+  when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
+
+- name: marzban | Restart container to remove SUDO_* vars from container env
+  community.docker.docker_compose_v2:
+    project_src: "{{ marzban_install_dir }}"
+    state: restarted
   when: marzban_admin_username not in (marzban_admin_list.stdout | default(''))
 
 - name: marzban | Save credentials to file
