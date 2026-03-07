@@ -155,6 +155,50 @@
     delay: 3
     timeout: 30
 
+- name: marzban | Obtain API token for host settings configuration
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ marzban_panel_port }}/api/admin/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      username: "{{ marzban_admin_username }}"
+      password: "{{ marzban_admin_password }}"
+    status_code: 200
+  register: marzban_api_token_response
+  no_log: true
+  when: marzban_configure_hosts | bool
+
+- name: marzban | Configure VLESS_TLS host settings via API
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ marzban_panel_port }}/api/hosts"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ marzban_api_token_response.json.access_token }}"
+    body_format: json
+    body:
+      VLESS_TLS:
+        - remark: "{{ marzban_host_remark }}"
+          address: "{{ marzban_domain }}"
+          port: "{{ marzban_xray_port }}"
+          sni: null
+          host: null
+          path: ""
+          security: "{{ marzban_host_security }}"
+          alpn: "{{ marzban_host_alpn }}"
+          fingerprint: "{{ marzban_host_fingerprint }}"
+          allowinsecure: false
+          mux_enable: false
+          random_user_agent: false
+          use_sni_as_host: false
+    status_code: 200
+  no_log: true
+  when: marzban_configure_hosts | bool
+
+- name: marzban | Clear API token from memory
+  ansible.builtin.set_fact:
+    marzban_api_token_response: null
+  when: marzban_configure_hosts | bool
+
 - name: marzban | Check if admin account already exists
   ansible.builtin.command:
     cmd: "{{ marzban_venv_dir }}/bin/python marzban-cli.py admin list"
