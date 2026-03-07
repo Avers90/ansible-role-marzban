@@ -214,14 +214,15 @@
     body_format: json
     body:
       proxies:
-        VLESS:
+        vless:
+          id: "{{ item.proxies.vless.id }}"
           flow: "{{ marzban_user_flow }}"
     status_code: 200
   loop: "{{ marzban_users_response.json.users }}"
   loop_control:
     label: "{{ item.username }}"
   no_log: true
-  when: marzban_user_flow != ""
+  when: marzban_user_flow != "" and item.proxies.vless is defined
 
 - name: marzban | Clear API token from memory
   ansible.builtin.set_fact:
