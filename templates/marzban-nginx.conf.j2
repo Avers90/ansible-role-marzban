@@ -21,7 +21,7 @@ server {
 
 {% endif %}
     # Marzban dashboard and API proxy
-    location ~* ^/(dashboard|api|docs|redoc|openapi.json) {
+    location ~* ^/(dashboard|api|docs|redoc|openapi.json|statics) {
         proxy_pass http://127.0.0.1:{{ marzban_panel_port }};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
