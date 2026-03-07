@@ -39,6 +39,13 @@
     creates: /usr/local/bin/xray
   when: not marzban_xray_binary.stat.exists
 
+- name: marzban | Disable xray.service (Marzban manages Xray as a child process)
+  ansible.builtin.systemd:
+    name: xray
+    enabled: false
+    state: stopped
+  failed_when: false
+
 - name: marzban | Clone or update Marzban repository
   ansible.builtin.git:
     repo: "https://github.com/Gozargah/Marzban.git"
