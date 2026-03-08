@@ -10,7 +10,7 @@ server {
     root {{ marzban_site_root }};
     index index.html index.htm;
 
-    access_log {{ marzban_site_access_log }};
+    access_log {{ marzban_site_access_log }}{% if marzban_site_access_log_format %} {{ marzban_site_access_log_format }}{% endif %};
     error_log {{ marzban_site_error_log }};
 
 {% if marzban_site_security_headers | bool %}

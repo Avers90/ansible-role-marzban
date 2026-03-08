@@ -102,6 +102,7 @@ marzban_site_root: "/var/www/html"
 
 ## Nginx site log paths
 marzban_site_access_log: "/var/log/nginx/marzban-access.log"
+marzban_site_access_log_format: "main"
 marzban_site_error_log: "/var/log/nginx/marzban-error.log"
 
 ## Add security headers to nginx site vhost (makes it look like a real site)

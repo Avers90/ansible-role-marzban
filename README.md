@@ -88,6 +88,7 @@ roles:
 | `marzban_nginx_fallback_port` | `8080` | Port nginx listens on for Xray fallback traffic |
 | `marzban_site_root` | `"/var/www/html"` | Document root for static site |
 | `marzban_site_access_log` | `"/var/log/nginx/marzban-access.log"` | Access log path |
+| `marzban_site_access_log_format` | `"main"` | Log format (`main\|json\|""` for nginx default) |
 | `marzban_site_error_log` | `"/var/log/nginx/marzban-error.log"` | Error log path |
 | `marzban_site_security_headers` | `true` | Add `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` headers |
 | `marzban_subscription_path` | `"sub"` | Subscription URL path (proxied to Marzban) |
