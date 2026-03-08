@@ -17,8 +17,7 @@ upstream xray_xhttp {
 }
 
 server {
-    listen 443 ssl;
-    http2 on;
+    listen 443 ssl http2;
     server_name {{ marzban_domain }};
 
     # TLS certificates (managed by acme.sh)
