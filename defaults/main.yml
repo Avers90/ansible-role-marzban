@@ -89,6 +89,16 @@ marzban_xray_block_private_ip: true
 ## routing them via VPN causes a timeout while the tunnel is still establishing.
 marzban_xray_captive_portal_fix: true
 
+## VLESS XHTTP TLS inbound — secondary inbound for DPI evasion (e.g. Russia)
+## Runs on a separate port alongside the main TCP TLS inbound.
+## Traffic looks like regular HTTPS/HTTP2 requests, bypasses TCP-based DPI.
+## Requires opening marzban_xray_xhttp_port in the firewall.
+## Client fingerprint: chrome (uTLS impersonation)
+## mode: auto — Xray picks HTTP/1.1 or H2 depending on client ALPN
+marzban_xray_xhttp_enabled: false
+marzban_xray_xhttp_port: 8443
+marzban_xray_xhttp_mode: "auto"
+
 ## Additional Xray inbounds appended after the main VLESS TLS inbound
 ## Format: list of YAML dicts — converted to JSON via to_json filter
 ## Example: VLESS WebSocket, VMess, Trojan, etc.
@@ -113,9 +123,10 @@ marzban_service_enabled: true
 marzban_service_state: started
 
 ## VLESS flow control — applied to all users via Marzban API
-## xtls-rprx-vision: recommended for TCP+TLS (reduces double encryption overhead)
-## "": disabled — required when using WebSocket or gRPC transports
-marzban_user_flow: "xtls-rprx-vision"
+## "": disabled — required when using mux (h2mux); Hiddify adds h2mux automatically,
+##   vision+mux together cause bufferbloat. Keep empty unless you know what you're doing.
+## "xtls-rprx-vision": only useful for raw TCP+TLS without mux — reduces double encryption
+marzban_user_flow: ""
 
 ## Host settings — configured via Marzban API after install
 ## Controls what appears in Host Settings UI and gets embedded in client subscription links
