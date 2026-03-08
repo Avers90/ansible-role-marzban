@@ -45,46 +45,7 @@
           "quic"
         ]
       }
-    }{% if marzban_xray_xhttp_enabled | bool %},
-    {
-      "tag": "VLESS_XHTTP_TLS",
-      "listen": "{{ marzban_xray_listen }}",
-      "port": {{ marzban_xray_xhttp_port }},
-      "protocol": "vless",
-      "settings": {
-        "clients": [],
-        "decryption": "none"
-      },
-      "streamSettings": {
-        "network": "xhttp",
-        "xhttpSettings": {
-          "mode": "{{ marzban_xray_xhttp_mode }}"
-        },
-        "security": "tls",
-        "tlsSettings": {
-          "serverName": "{{ marzban_domain }}",
-          "minVersion": "{{ marzban_xray_tls_min_version }}",
-{% if marzban_xray_cipher_suites != "" %}
-          "cipherSuites": "{{ marzban_xray_cipher_suites }}",
-{% endif %}
-          "certificates": [
-            {
-              "ocspStapling": 3600,
-              "certificateFile": "{{ marzban_cert_dir }}/{{ marzban_domain }}-fullchain.cer",
-              "keyFile": "{{ marzban_cert_dir }}/{{ marzban_domain }}.key"
-            }
-          ]
-        }
-      },
-      "sniffing": {
-        "enabled": {{ marzban_xray_sniffing_enabled | lower }},
-        "destOverride": [
-          "http",
-          "tls",
-          "quic"
-        ]
-      }
-    }{% endif %}{% for inbound in marzban_xray_extra_inbounds %},
+    }{% for inbound in marzban_xray_extra_inbounds %},
     {{ inbound | to_json(indent=4) | indent(4) }}{% endfor %}
   ],
   "outbounds": [
