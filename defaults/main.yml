@@ -78,6 +78,11 @@ marzban_xray_sniffing_enabled: true
 ## Block outbound connections to private/reserved IP ranges
 marzban_xray_block_private_ip: true
 
+## Route captive portal check domains directly — fixes Hiddify "Timeout" error on connect
+## These domains are used by Android/iOS/Windows to detect internet connectivity;
+## routing them via VPN causes a timeout while the tunnel is still establishing.
+marzban_xray_captive_portal_fix: true
+
 ## Additional Xray inbounds appended after the main VLESS TLS inbound
 ## Format: list of YAML dicts — converted to JSON via to_json filter
 ## Example: VLESS WebSocket, VMess, Trojan, etc.

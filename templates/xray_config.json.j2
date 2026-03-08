@@ -4,7 +4,7 @@
   },
   "inbounds": [
     {
-      "tag": "VLESS_TLS",
+      "tag": "VLESS_TCP_TLS",
       "listen": "{{ marzban_xray_listen }}",
       "port": {{ marzban_xray_port }},
       "protocol": "vless",
@@ -40,7 +40,8 @@
         "enabled": {{ marzban_xray_sniffing_enabled | lower }},
         "destOverride": [
           "http",
-          "tls"
+          "tls",
+          "quic"
         ]
       }
     }{% for inbound in marzban_xray_extra_inbounds %},
@@ -58,6 +59,22 @@
   ],
   "routing": {
     "rules": [
+{% if marzban_xray_captive_portal_fix | bool %}
+      {
+        "outboundTag": "DIRECT",
+        "domain": [
+          "full:cp.cloudflare.com",
+          "domain:msftconnecttest.com",
+          "domain:msftncsi.com",
+          "domain:connectivitycheck.gstatic.com",
+          "domain:captive.apple.com",
+          "full:detectportal.firefox.com",
+          "domain:networkcheck.kde.org",
+          "full:*.gstatic.com"
+        ],
+        "type": "field"
+      },
+{% endif %}
 {% if marzban_xray_block_private_ip | bool %}
       {
         "type": "field",

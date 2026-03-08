@@ -176,7 +176,7 @@
       Authorization: "Bearer {{ marzban_api_token_response.json.access_token }}"
     body_format: json
     body:
-      VLESS_TLS:
+      VLESS_TCP_TLS:
         - remark: "{{ marzban_host_remark }}"
           address: "{{ marzban_domain }}"
           port: "{{ marzban_xray_port }}"
