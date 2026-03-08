@@ -126,13 +126,6 @@ marzban_host_fingerprint: "chrome"
 ## Used in nginx location to proxy subscription requests to Marzban
 marzban_subscription_path: "sub"
 
-## Automatically sync VLESS flow for all users via systemd timer
-## Useful when users are created via Marzban UI between Ansible runs
-marzban_sync_flow_enabled: true
-
-## How often to check and fix flow for users (systemd timer OnUnitActiveSec)
-marzban_sync_flow_interval: "5min"
-
 ## SNI value embedded in client subscription links
 ## " " (single space) — Marzban treats it as truthy, strips to "" in URI,
 ##   client falls back to using address as SNI. Real domain stays hidden.

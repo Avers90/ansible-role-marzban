@@ -1,9 +1,0 @@
-# {{ ansible_managed }}
-[Unit]
-Description=Marzban sync VLESS flow for all users
-After=marzban.service
-Requires=marzban.service
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/sbin/marzban-sync-flow.sh
