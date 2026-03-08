@@ -43,7 +43,42 @@
           "tls"
         ]
       }
-    }{% for inbound in marzban_xray_extra_inbounds %},
+    }{% if marzban_grpc_enabled | bool %},
+    {
+      "tag": "{{ marzban_grpc_tag }}",
+      "listen": "{{ marzban_xray_listen }}",
+      "port": {{ marzban_grpc_port }},
+      "protocol": "vless",
+      "settings": {
+        "clients": [],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "grpc",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "{{ marzban_domain }}",
+          "minVersion": "{{ marzban_xray_tls_min_version }}",
+{% if marzban_xray_cipher_suites != "" %}
+          "cipherSuites": "{{ marzban_xray_cipher_suites }}",
+{% endif %}
+          "certificates": [
+            {
+              "certificateFile": "{{ marzban_cert_dir }}/{{ marzban_domain }}-fullchain.cer",
+              "keyFile": "{{ marzban_cert_dir }}/{{ marzban_domain }}.key"
+            }
+          ],
+          "alpn": ["h2"]
+        },
+        "grpcSettings": {
+          "serviceName": "{{ marzban_grpc_service_name }}",
+          "multiMode": false
+        }
+      },
+      "sniffing": {
+        "enabled": false
+      }
+    }{% endif %}{% for inbound in marzban_xray_extra_inbounds %},
     {{ inbound | to_json(indent=4) | indent(4) }}{% endfor %}
   ],
   "outbounds": [

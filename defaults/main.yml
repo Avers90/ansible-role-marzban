@@ -132,3 +132,20 @@ marzban_subscription_path: "sub"
 ## "" or null — Marzban falls back to reading SANs from TLS certificate,
 ##   exposing the real domain as sni=domain in the URI.
 marzban_host_sni: " "
+
+## gRPC inbound settings
+## Enable a separate VLESS + gRPC + TLS inbound on a dedicated port.
+## gRPC uses HTTP/2 natively — no external mux needed, fixes h2mux bufferbloat.
+## flow must be "" — xtls-rprx-vision is incompatible with gRPC transport.
+marzban_grpc_enabled: false
+
+## Port for the gRPC inbound (must be opened in firewall)
+## 2083 is a common choice (Cable Modem/Router Management — rarely blocked)
+marzban_grpc_port: 2083
+
+## gRPC service name (appears as the HTTP/2 path, e.g. /grpc-service/Tun)
+## Use a plausible-looking name to blend in with legitimate gRPC traffic
+marzban_grpc_service_name: "GunService"
+
+## Xray tag for the gRPC inbound (used internally in routing rules)
+marzban_grpc_tag: "VLESS_GRPC"
