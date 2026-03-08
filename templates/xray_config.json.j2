@@ -4,20 +4,36 @@
   },
   "inbounds": [
     {
-      "tag": "VLESS_XHTTP",
-      "listen": "127.0.0.1",
-      "port": {{ marzban_xhttp_port }},
+      "tag": "VLESS_TLS",
+      "listen": "{{ marzban_xray_listen }}",
+      "port": {{ marzban_xray_port }},
       "protocol": "vless",
       "settings": {
         "clients": [],
-        "decryption": "none"
+        "decryption": "none",
+        "fallbacks": [
+          {
+            "dest": {{ marzban_nginx_fallback_port }},
+            "xver": {{ marzban_xray_fallback_xver }}
+          }
+        ]
       },
       "streamSettings": {
-        "network": "xhttp",
-        "security": "none",
-        "xhttpSettings": {
-          "path": "{{ marzban_xhttp_path }}",
-          "host": "{{ marzban_domain }}"
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "{{ marzban_domain }}",
+          "minVersion": "{{ marzban_xray_tls_min_version }}",
+{% if marzban_xray_cipher_suites != "" %}
+          "cipherSuites": "{{ marzban_xray_cipher_suites }}",
+{% endif %}
+          "certificates": [
+            {
+              "certificateFile": "{{ marzban_cert_dir }}/{{ marzban_domain }}-fullchain.cer",
+              "keyFile": "{{ marzban_cert_dir }}/{{ marzban_domain }}.key"
+            }
+          ],
+          "alpn": {{ marzban_xray_alpn | to_json }}
         }
       },
       "sniffing": {

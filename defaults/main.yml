@@ -44,20 +44,18 @@ marzban_xray_config_deploy: true
 ## Requires ansible-role-nginx to be applied before this role
 marzban_nginx_config_deploy: true
 
-## XHTTP inbound port (Xray listens on 127.0.0.1 only — nginx terminates TLS on 443)
-## nginx proxies XHTTP path to this port via grpc_pass
-marzban_xhttp_port: 2083
+## Xray VLESS inbound port (Xray terminates TLS directly)
+marzban_xray_port: 443
 
-## XHTTP path — must match the nginx location and client configuration
-## nginx will proxy requests to this path to Xray XHTTP inbound
-marzban_xhttp_path: "/xhttp"
+## Xray VLESS inbound listen address
+marzban_xray_listen: "0.0.0.0"
 
-## Nginx HTTPS port (nginx terminates TLS, proxies to Xray XHTTP and Marzban)
-marzban_nginx_https_port: 443
-
-## Nginx fallback port (legacy — kept for reference, not used in XHTTP architecture)
-## In XHTTP mode nginx handles TLS directly; there is no Xray fallback to nginx.
+## Nginx fallback port — Xray forwards unrecognized HTTPS traffic here
+## nginx listens on 127.0.0.1 only (not exposed to internet)
 marzban_nginx_fallback_port: 8080
+
+## Xray PROXY protocol version for fallback (0 = disabled)
+marzban_xray_fallback_xver: 0
 
 ## Xray log level (debug | info | warning | error | none)
 marzban_xray_log_level: "warning"
@@ -68,9 +66,14 @@ marzban_xray_tls_min_version: "1.2"
 ## TLS cipher suites for VLESS inbound (empty string = Xray defaults)
 marzban_xray_cipher_suites: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
 
+## ALPN for Xray TLS inbound
+## NOTE: h2 cannot be used here — Xray fallback only works with http/1.1
+## Using h2 in ALPN disables fallback and breaks non-VPN traffic routing
+marzban_xray_alpn:
+  - "http/1.1"
+
 ## Enable Xray traffic sniffing (detect HTTP/TLS destination)
-## XHTTP inbound: sniffing is generally not needed (no fallback routing)
-marzban_xray_sniffing_enabled: false
+marzban_xray_sniffing_enabled: true
 
 ## Block outbound connections to private/reserved IP ranges
 marzban_xray_block_private_ip: true
@@ -113,8 +116,8 @@ marzban_host_remark: "🚀 Marz ({USERNAME}) [{PROTOCOL} - {TRANSPORT}]"
 ## Security layer (inbound_default | tls | none)
 marzban_host_security: "inbound_default"
 
-## ALPN — h2 for XHTTP stream-up (nginx speaks HTTP/2 to the client)
-marzban_host_alpn: "h2"
+## ALPN value embedded in client subscription links
+marzban_host_alpn: "http/1.1"
 
 ## TLS fingerprint for uTLS impersonation
 ## (chrome | firefox | safari | ios | android | edge | 360 | qq | random | randomized | "")
@@ -130,7 +133,3 @@ marzban_subscription_path: "sub"
 ## "" or null — Marzban falls back to reading SANs from TLS certificate,
 ##   exposing the real domain as sni=domain in the URI.
 marzban_host_sni: " "
-
-## Host settings for XHTTP inbound — address/port embedded in subscription links
-## Port here is the external nginx port (443), not the internal Xray XHTTP port (2083)
-marzban_host_xhttp_port: 443

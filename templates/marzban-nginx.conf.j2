@@ -1,36 +1,17 @@
 # {{ ansible_managed }}
-# Nginx vhost for Marzban (XHTTP transport)
-#
-# Architecture:
-#   Client → :443 TLS → nginx (terminates TLS, HTTP/2)
-#     ├── {{ marzban_xhttp_path }}  → grpc_pass 127.0.0.1:{{ marzban_xhttp_port }} (Xray XHTTP stream-up)
-#     ├── /dashboard/, /api/, /sub/ → proxy_pass 127.0.0.1:{{ marzban_panel_port }} (Marzban)
-#     └── /                         → {{ marzban_site_root }} (decoy site)
-#
-#   Xray listens on 127.0.0.1:{{ marzban_xhttp_port }} without TLS (XHTTP network, no security)
-#   HTTP :80 → 301 redirect to HTTPS (handled by ansible-role-nginx redirect vhost)
-
-# Upstream for Xray XHTTP (gRPC-compatible stream-up, HTTP/2 required)
-upstream xray_xhttp {
-    server 127.0.0.1:{{ marzban_xhttp_port }};
-    keepalive 32;
-}
+# Nginx vhost for Marzban
+# Xray forwards unrecognized HTTPS traffic here via fallback to port {{ marzban_nginx_fallback_port }}
+# This vhost listens on 127.0.0.1 only - it is NOT directly exposed to the internet
 
 server {
-    listen 443 ssl http2;
+    listen 127.0.0.1:{{ marzban_nginx_fallback_port }};
     server_name {{ marzban_domain }};
 
-    # TLS certificates (managed by acme.sh)
-    ssl_certificate     {{ marzban_cert_dir }}/{{ marzban_domain }}-fullchain.cer;
-    ssl_certificate_key {{ marzban_cert_dir }}/{{ marzban_domain }}.key;
-
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers off;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 1d;
+    root {{ marzban_site_root }};
+    index index.html index.htm;
 
     access_log {{ marzban_site_access_log }};
-    error_log  {{ marzban_site_error_log }};
+    error_log {{ marzban_site_error_log }};
 
 {% if marzban_site_security_headers | bool %}
     # Security headers - make it look like a real site
@@ -39,31 +20,16 @@ server {
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
 
 {% endif %}
-    # XHTTP transport — Xray VLESS over HTTP/2 stream-up with gRPC header masking
-    # grpc_pass is required: XHTTP stream-up sends Content-Type: application/grpc
-    location {{ marzban_xhttp_path }} {
-        grpc_pass grpc://xray_xhttp;
-        grpc_read_timeout 1d;
-        grpc_send_timeout 1d;
-        grpc_set_header Host $host;
-        grpc_set_header X-Real-IP $remote_addr;
-        grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-
     # Marzban dashboard, API and subscription proxy
     location ~* ^/(dashboard|api|docs|redoc|openapi.json|statics|{{ marzban_subscription_path }}) {
         proxy_pass http://127.0.0.1:{{ marzban_panel_port }};
-        proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Serve static decoy site
-    root {{ marzban_site_root }};
-    index index.html index.htm;
-
+    # Serve static files
     location / {
         try_files $uri $uri/ =404;
     }

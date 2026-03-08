@@ -49,7 +49,7 @@
     --cert-file {{ marzban_cert_dir }}/{{ marzban_domain }}.cer
     --key-file {{ marzban_cert_dir }}/{{ marzban_domain }}.key
     --fullchain-file {{ marzban_cert_dir }}/{{ marzban_domain }}-fullchain.cer
-    --reloadcmd "systemctl reload nginx"
+    --reloadcmd "systemctl restart marzban"
   register: marzban_installcert
   changed_when: "'Installing cert' in marzban_installcert.stdout"
   when: not marzban_cert_exists.stat.exists
