@@ -26,25 +26,62 @@
     state: present
     update_cache: true
 
-- name: marzban | Check if Xray is installed
-  ansible.builtin.stat:
-    path: /usr/local/bin/xray
-  register: marzban_xray_binary
+- name: marzban | Install unzip (required for Xray archive extraction)
+  ansible.builtin.apt:
+    name: unzip
+    state: present
 
-- name: marzban | Install Xray via official install script
-  ansible.builtin.shell: |
-    bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install \
-      {% if marzban_xray_version != 'latest' %}--version {{ marzban_xray_version }}{% endif %}
-  args:
-    creates: /usr/local/bin/xray
-  when: not marzban_xray_binary.stat.exists
+- name: marzban | Create Xray binary directory
+  ansible.builtin.file:
+    path: "{{ marzban_xray_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
-- name: marzban | Disable xray.service (Marzban manages Xray as a child process)
-  ansible.builtin.systemd:
-    name: xray
-    enabled: false
-    state: stopped
+- name: marzban | Check current Xray version
+  ansible.builtin.command: "{{ marzban_xray_dir }}/xray version"
+  register: marzban_xray_current_version
+  changed_when: false
   failed_when: false
+
+- name: marzban | Download Xray {{ marzban_xray_version }}
+  ansible.builtin.get_url:
+    url: "https://github.com/XTLS/Xray-core/releases/download/{{ marzban_xray_version }}/Xray-linux-64.zip"
+    dest: "/tmp/Xray-linux-64.zip"
+    mode: "0644"
+    force: true
+  when: marzban_xray_version not in (marzban_xray_current_version.stdout | default(''))
+  notify: Restart marzban
+
+- name: marzban | Extract Xray binary
+  ansible.builtin.unarchive:
+    src: "/tmp/Xray-linux-64.zip"
+    dest: "{{ marzban_xray_dir }}"
+    remote_src: true
+    mode: "0755"
+  when: marzban_xray_version not in (marzban_xray_current_version.stdout | default(''))
+
+- name: marzban | Set Xray binary permissions
+  ansible.builtin.file:
+    path: "{{ marzban_xray_dir }}/xray"
+    owner: root
+    group: root
+    mode: "0755"
+  when: marzban_xray_version not in (marzban_xray_current_version.stdout | default(''))
+
+- name: marzban | Remove Xray zip archive
+  ansible.builtin.file:
+    path: "/tmp/Xray-linux-64.zip"
+    state: absent
+  when: marzban_xray_version not in (marzban_xray_current_version.stdout | default(''))
+
+- name: marzban | Create /usr/local/bin/xray symlink to Marzban-managed binary
+  ansible.builtin.file:
+    src: "{{ marzban_xray_dir }}/xray"
+    dest: /usr/local/bin/xray
+    state: link
+    force: true
 
 - name: marzban | Clone or update Marzban repository
   ansible.builtin.git:
