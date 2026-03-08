@@ -168,7 +168,7 @@
   no_log: true
   when: marzban_configure_hosts | bool or marzban_user_flow != ""
 
-- name: marzban | Configure VLESS_TLS host settings via API
+- name: marzban | Configure VLESS_XHTTP host settings via API
   ansible.builtin.uri:
     url: "http://127.0.0.1:{{ marzban_panel_port }}/api/hosts"
     method: PUT
@@ -176,13 +176,13 @@
       Authorization: "Bearer {{ marzban_api_token_response.json.access_token }}"
     body_format: json
     body:
-      VLESS_TLS:
+      VLESS_XHTTP:
         - remark: "{{ marzban_host_remark }}"
           address: "{{ marzban_domain }}"
-          port: "{{ marzban_xray_port }}"
+          port: "{{ marzban_host_xhttp_port }}"
           sni: "{{ marzban_host_sni }}"
           host: null
-          path: ""
+          path: "{{ marzban_xhttp_path }}"
           security: "{{ marzban_host_security }}"
           alpn: "{{ marzban_host_alpn }}"
           fingerprint: "{{ marzban_host_fingerprint }}"
@@ -292,13 +292,15 @@
       Dashboard: https://{{ marzban_domain }}{{ marzban_dashboard_path }}
 
       Architecture:
-        Client → :{{ marzban_xray_port }} (VLESS TLS) → Xray-core
-                                       ↓ fallback (non-VPN traffic)
-                               127.0.0.1:{{ marzban_nginx_fallback_port }} → nginx → {{ marzban_site_root }}
+        Client → :443 TLS → nginx (terminates TLS, HTTP/2)
+                                ├── {{ marzban_xhttp_path }} → grpc_pass 127.0.0.1:{{ marzban_xhttp_port }} (Xray XHTTP)
+                                ├── /dashboard/, /api/, /sub/ → 127.0.0.1:{{ marzban_panel_port }} (Marzban)
+                                └── / → {{ marzban_site_root }} (decoy site)
 
       Credentials saved to: {{ marzban_install_dir }}/credentials.txt
       (delete after saving!)
 
       Useful commands:
         journalctl -u marzban -f
+        journalctl -u nginx -f
         marzban-cli admin list
