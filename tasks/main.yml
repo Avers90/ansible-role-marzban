@@ -23,13 +23,9 @@
       - python3
       - python3-venv
       - cron
+      - unzip
     state: present
     update_cache: true
-
-- name: marzban | Install unzip (required for Xray archive extraction)
-  ansible.builtin.apt:
-    name: unzip
-    state: present
 
 - name: marzban | Create Xray binary directory
   ansible.builtin.file:
@@ -125,8 +121,6 @@
   ansible.builtin.command:
     cmd: "{{ marzban_venv_dir }}/bin/alembic upgrade head"
     chdir: "{{ marzban_install_dir }}"
-  environment:
-    SQLALCHEMY_DATABASE_URL: "sqlite:///{{ marzban_data_dir }}/db.sqlite3"
   changed_when: false
 
 - name: marzban | Create marzban-cli symlink

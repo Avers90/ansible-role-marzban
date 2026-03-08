@@ -14,7 +14,7 @@
 
 - name: marzban | Download and install acme.sh
   ansible.builtin.shell: |
-    curl -s https://get.acme.sh | sh -s email={{ marzban_ssl_email }}
+    curl -fsSL https://get.acme.sh | sh -s email={{ marzban_ssl_email }}
   args:
     creates: /root/.acme.sh/acme.sh
   when: not marzban_acme_installed.stat.exists

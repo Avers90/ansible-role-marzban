@@ -17,6 +17,10 @@
     mode: "0644"
   notify: Reload nginx
 
+- name: marzban | Validate nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
 - name: marzban | Enable marzban nginx vhost
   ansible.builtin.file:
     src: /etc/nginx/sites-available/marzban.conf
