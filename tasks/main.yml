@@ -26,6 +26,7 @@
       - unzip
     state: present
     update_cache: true
+    lock_timeout: 300
 
 - name: marzban | Create Xray binary directory
   ansible.builtin.file:
@@ -41,36 +42,35 @@
   changed_when: false
   failed_when: false
 
-- name: marzban | Download Xray {{ marzban_xray_version }}
-  ansible.builtin.get_url:
-    url: "https://github.com/XTLS/Xray-core/releases/download/{{ marzban_xray_version }}/Xray-linux-64.zip"
-    dest: "/tmp/Xray-linux-64.zip"
-    mode: "0644"
-    force: true
+- name: marzban | Update Xray to {{ marzban_xray_version }}
   when: marzban_xray_version not in (marzban_xray_current_version.stdout | default(''))
   notify: Restart marzban
+  block:
+    - name: marzban | Download Xray {{ marzban_xray_version }}
+      ansible.builtin.get_url:
+        url: "https://github.com/XTLS/Xray-core/releases/download/{{ marzban_xray_version }}/Xray-linux-64.zip"
+        dest: "/tmp/Xray-linux-64.zip"
+        mode: "0644"
+        force: true
 
-- name: marzban | Extract Xray binary
-  ansible.builtin.unarchive:
-    src: "/tmp/Xray-linux-64.zip"
-    dest: "{{ marzban_xray_dir }}"
-    remote_src: true
-    mode: "0755"
-  when: marzban_xray_version not in (marzban_xray_current_version.stdout | default(''))
+    - name: marzban | Extract Xray binary
+      ansible.builtin.unarchive:
+        src: "/tmp/Xray-linux-64.zip"
+        dest: "{{ marzban_xray_dir }}"
+        remote_src: true
+        mode: "0755"
 
-- name: marzban | Set Xray binary permissions
-  ansible.builtin.file:
-    path: "{{ marzban_xray_dir }}/xray"
-    owner: root
-    group: root
-    mode: "0755"
-  when: marzban_xray_version not in (marzban_xray_current_version.stdout | default(''))
+    - name: marzban | Set Xray binary permissions
+      ansible.builtin.file:
+        path: "{{ marzban_xray_dir }}/xray"
+        owner: root
+        group: root
+        mode: "0755"
 
-- name: marzban | Remove Xray zip archive
-  ansible.builtin.file:
-    path: "/tmp/Xray-linux-64.zip"
-    state: absent
-  when: marzban_xray_version not in (marzban_xray_current_version.stdout | default(''))
+    - name: marzban | Remove Xray zip archive
+      ansible.builtin.file:
+        path: "/tmp/Xray-linux-64.zip"
+        state: absent
 
 - name: marzban | Create /usr/local/bin/xray symlink to Marzban-managed binary
   ansible.builtin.file:
@@ -121,7 +121,8 @@
   ansible.builtin.command:
     cmd: "{{ marzban_venv_dir }}/bin/alembic upgrade head"
     chdir: "{{ marzban_install_dir }}"
-  changed_when: false
+  register: marzban_alembic_result
+  changed_when: "'Running upgrade' in marzban_alembic_result.stdout"
 
 - name: marzban | Create marzban-cli symlink
   ansible.builtin.file:
@@ -227,7 +228,7 @@
 
 - name: marzban | Get list of all users for flow update
   ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ marzban_panel_port }}/api/users?limit=999"
+    url: "http://127.0.0.1:{{ marzban_panel_port }}/api/users?limit={{ marzban_api_users_limit }}"
     method: GET
     headers:
       Authorization: "Bearer {{ marzban_api_token_response.json.access_token }}"
@@ -244,10 +245,9 @@
       Authorization: "Bearer {{ marzban_api_token_response.json.access_token }}"
     body_format: json
     body:
-      proxies:
-        vless:
-          id: "{{ item.proxies.vless.id }}"
-          flow: "{{ marzban_user_flow }}"
+      # Pass all existing proxies — Marzban deletes any proxy type not present in PUT body.
+      # We merge vless.flow into the existing vless settings to avoid wiping other protocols.
+      proxies: "{{ item.proxies | combine({'vless': item.proxies.vless | combine({'flow': marzban_user_flow})}) }}"
     status_code: 200
   loop: "{{ marzban_users_response.json.users }}"
   loop_control:
@@ -313,6 +313,7 @@
     owner: root
     group: root
     mode: "0600"
+    force: false
   no_log: true
 
 - name: marzban | Display access information
